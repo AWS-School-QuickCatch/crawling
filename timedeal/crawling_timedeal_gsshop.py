@@ -1,79 +1,104 @@
-import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
+import time
 from bs4 import BeautifulSoup
+import re
 
-# 웹페이지 URL
-url = "https://www.gsshop.com/shop/bargain.gs?lseq=425247&gsid=ECmain-AU425247-AU425247#TAB_423403"
+# Chrome 옵션 설정
+chrome_options = Options()
+chrome_options.add_argument("--headless")  # GUI를 표시하지 않음
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
 
-# 사용자 에이전트 설정
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-}
+# Chrome 드라이버 설정
+service = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=service, options=chrome_options)
 
-# 페이지 요청
-response = requests.get(url, headers=headers)
-response.raise_for_status()  # 요청 실패 시 예외 발생
+# URL 설정
+url = "https://www.gsshop.com/shop/spa/nowBest.gs?lseq=415303-1&gsid=gnb-AU415303-AU415303-1"
+driver.get(url)
 
-# BeautifulSoup을 사용하여 HTML 파싱
-soup = BeautifulSoup(response.text, 'html.parser')
+# 페이지 로드 및 JS 실행 대기
+time.sleep(5)  # 페이지가 로드되고 JS가 실행될 시간을 기다림
 
-# 각 분야의 data-locseq 값 추출
-nav_items = soup.select('nav#detail-tab .item')
-sections = []
+# "상품 더보기" 버튼 클릭 함수
+def click_more_button(driver):
+    try:
+        while True:
+            more_button = driver.find_element(By.ID, 'moreBtn')
+            if 'hide' in more_button.get_attribute('class'):
+                break
+            more_button.click()
+            time.sleep(2)
+    except Exception as e:
+        print("더 이상 '상품 더보기' 버튼이 없습니다.", e)
 
-for item in nav_items:
-    locseq = item['data-locseq']
-    section_name = item.get_text(strip=True)
-    sections.append((locseq, section_name))
+# "상품 더보기" 버튼 클릭하여 모든 상품 로드
+click_more_button(driver)
 
-# 결과 저장을 위한 딕셔너리
-results = {}
+# 페이지 소스 가져오기
+page_source = driver.page_source
 
-# 각 분야별로 데이터를 추출
-for locseq, section_name in sections:
-    section = soup.find('section', {'class': 'prd-list type-4items', 'data-locseq': locseq})
-    products = section.find_all('li')
-    section_results = []
+# BeautifulSoup 객체 생성
+soup = BeautifulSoup(page_source, 'html.parser')
 
-    for product in products:
-        # 상품 이름
-        name_tag = product.find('dt', class_='prd-name')
-        name = name_tag.get_text(strip=True) if name_tag else 'No name'
-        
-        # 상품 가격
-        price_tag = product.find('span', class_='set-price').strong
-        price = price_tag.get_text(strip=True) if price_tag else 'No price'
-        
-        # 상품 URL
-        link_tag = product.find('a', class_='prd-item')
-        product_url = f"https://www.gsshop.com{link_tag['href']}" if link_tag else 'No URL'
-        
-        # 상품 판매수
-        selling_count_tag = product.find('span', class_='selling-count')
-        selling_count = selling_count_tag.get_text(strip=True) if selling_count_tag else 'No selling count'
+# 상품 정보를 담을 리스트
+products = []
 
-        # 이미지 URL
-        img_tag = product.find('img')
-        img_url = img_tag['src'] if img_tag else 'No image'
-        
-        # 결과 저장
-        section_results.append({
-            'name': name,
-            'price': price,
-            'url': product_url,
-            'selling_count': selling_count,
-            'img' : img_url
-        })
-    
-    # 섹션 결과를 딕셔너리에 추가
-    results[section_name] = section_results
+# 상품 정보 추출
+items = soup.select('section.prd-list li')
+for item in items:
+    product = {}
+
+    # 실제 가격 추출
+    real_price_element = item.select_one('dd.price-info .set-price strong')
+    if real_price_element:
+        product['real_price'] = real_price_element.text + "원"
+    else:
+        product['real_price'] = "N/A"
+
+    # 이미지 URL 추출
+    image_element = item.find('img')
+    if image_element:
+        product['image_url'] = image_element['src']
+    else:
+        product['image_url'] = "N/A"
+
+    # 상품명 추출
+    product_name_element = item.select_one('dt.prd-name')
+    if product_name_element:
+        # 불필요한 공백과 줄바꿈 제거
+        product_name = re.sub(r'\s+', ' ', product_name_element.text).strip()
+        product['product_name'] = product_name
+    else:
+        product['product_name'] = "N/A"
+
+    # txt_purchase 추출
+    txt_purchase_element = item.select_one('dd.user-side .selling-count')
+    if txt_purchase_element:
+        product['txt_purchase'] = txt_purchase_element.text.strip()
+    else:
+        product['txt_purchase'] = "N/A"
+
+    # href 추출
+    href_element = item.find('a', class_='prd-item')
+    if href_element:
+        product['href'] = 'https://www.gsshop.com' + href_element['href']
+    else:
+        product['href'] = "N/A"
+
+    # 할인율 추출 (이 사이트에는 할인율 정보가 없는 것으로 보임)
+    product['discount_rate'] = "N/A"  # 할인율이 존재하지 않는 경우 기본 값 설정
+
+    products.append(product)
+
+# 드라이버 종료
+driver.quit()
 
 # 결과 출력
-for section_name, section_results in results.items():
-    print(f"Section: {section_name}")
-    for result in section_results:
-        print(f"  Name: {result['name']}")
-        print(f"  Price: {result['price']}")
-        print(f"  URL: {result['url']}")
-        print(f"  Selling Count: {result['selling_count']}")
-        print(f"  Img URL: {result['img']}")
-        print('-' * 40)
+import json
+for product in products:
+    print(json.dumps(product, ensure_ascii=False, indent=2))
