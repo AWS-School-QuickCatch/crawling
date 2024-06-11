@@ -28,7 +28,6 @@ def get_final_redirect_url_and_images(redirect_url):
 
     final_redirect_url = buy_link['href']
     final_redirect_url = 'http://www.hsmoa.com' + final_redirect_url if final_redirect_url.startswith('/') else final_redirect_url
-    print(f"Debug: Final redirect URL - {final_redirect_url}")  # 디버그용 출력
 
     # 상품 상세정보 이미지를 추출합니다.
     image_container = soup.find('div', class_='img_statem')
