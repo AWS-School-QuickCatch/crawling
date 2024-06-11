@@ -30,8 +30,14 @@ def get_final_redirect_url_and_images(redirect_url):
     final_redirect_url = 'http://www.hsmoa.com' + final_redirect_url if final_redirect_url.startswith('/') else final_redirect_url
 
     # 상품 상세정보 이미지를 추출합니다.
-    image_container = soup.find('div', class_='img_statem')
-    image_tags = image_container.find_all('img') if image_container else []
+    image_container = soup.find('div', class_='margin-9')
+    if not image_container:
+        return final_redirect_url, []
+
+    image_tags = image_container.find_all('img')
+    if not image_tags:
+        return final_redirect_url, []
+
     image_urls = [img['src'] for img in image_tags]
 
     return final_redirect_url, image_urls
