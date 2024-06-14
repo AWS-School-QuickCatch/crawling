@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import re
+import urllib
 
 def convert_time_format(time_str):
     # 공백을 제거합니다.
@@ -11,6 +12,20 @@ def convert_time_format(time_str):
     if len(time_str.split(":")[0]) == 1:
         time_str = "0" + time_str
     return time_str
+
+def convert_price_format(price_str):
+    # 숫자와 콤마를 제외한 모든 문자를 제거합니다.
+    price_str = re.sub(r'[^\d]', '', price_str)
+    if price_str:
+        return int(price_str)
+    return 0
+
+def extract_entity_id(redirect_url):
+    # URL에서 entity_id를 추출합니다.
+    match = re.search(r'id=(\d+)', redirect_url)
+    if match:
+        return match.group(1)
+    return None
 
 def get_final_redirect_url_and_images(redirect_url):
     # 요청을 보내고 페이지 내용을 가져옵니다.
@@ -62,7 +77,7 @@ def get_cjmall_products(url):
     products = []
 
     # 모든 cjmall 클래스를 포함하는 타임라인 아이템을 찾습니다.
-    items = soup.find_all('div', class_=re.compile(r'timeline-item.*cjmall.*'))
+    items = soup.find_all('div', class_=re.compile(r'timeline-item.*cjmall .*'))
 
     # 아이템이 있는지 확인합니다.
     if not items:
@@ -74,17 +89,26 @@ def get_cjmall_products(url):
         name_tag = item.find('div', class_='font-15')
         name = name_tag.get_text(strip=True) if name_tag else 'N/A'
 
+        #방송 날짜 가져오기
+        parsed_url = urllib.parse.urlparse(url)
+        query_params = urllib.parse. parse_qs(parsed_url.query)
+        broadcast_date = query_params.get('date', [None])[0]
+
         # 이미지 URL을 가져옵니다.
         image_tag = item.find('img', class_='lazy')
         image_url = image_tag['data-src'] if image_tag else 'N/A'
 
         # 가격 정보를 가져옵니다.
         price_tag = item.find('span', class_='strong font-17 c-black')
-        price = price_tag.get_text(strip=True) if price_tag else 'N/A'
+        price = convert_price_format(price_tag.get_text(strip=True)) if price_tag else 0
 
         # 리디렉션 URL을 가져옵니다.
         link_tag = item.find('a', class_='disblock')
         redirect_url = 'http://www.hsmoa.com' + link_tag['href'] if link_tag else 'N/A'
+
+        # entity_id 추출 및 product_id 생성
+        entity_id = extract_entity_id(redirect_url)
+        product_id = f"cmoa_{entity_id}" if entity_id else 'N/A'
 
         # 최종 redirect URL과 이미지 URLs를 가져옵니다.
         final_redirect_url, image_urls = get_final_redirect_url_and_images(redirect_url)
@@ -102,7 +126,10 @@ def get_cjmall_products(url):
 
         # 제품 정보를 딕셔너리 형태로 저장합니다.
         product = {
+            'product_id': product_id,
+            'site_name': 'cjonstyle',
             'name': name,
+            'broadcast_date': broadcast_date,
             'image_url': image_url,
             'price': price,
             'redirect_url': final_redirect_url,
