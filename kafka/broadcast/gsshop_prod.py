@@ -120,7 +120,7 @@ def get_gsshop_products(url):
 
 # Kafka Producer 설정
 producer = KafkaProducer(
-    bootstrap_servers='a8471728fdc6349c1b1bcb62019b35ae-309616313.ap-northeast-2.elb.amazonaws.com:9094',
+    bootstrap_servers='a0084d0ff1c1c4e2fac454202f6ae5ad-1982805326.ap-northeast-2.elb.amazonaws.com:9094',
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
