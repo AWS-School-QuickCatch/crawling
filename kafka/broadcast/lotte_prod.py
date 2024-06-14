@@ -74,9 +74,9 @@ def get_lottemall_products(url):
         name_tag = item.find('div', class_='font-15')
         name = name_tag.get_text(strip=True) if name_tag else 'N/A'
 
-        #방송 날짜 가져오기
+        # 방송 날짜 가져오기
         parsed_url = urllib.parse.urlparse(url)
-        query_params = urllib.parse. parse_qs(parsed_url.query)
+        query_params = urllib.parse.parse_qs(parsed_url.query)
         broadcast_date = query_params.get('date', [None])[0]
 
         # 이미지 URL을 가져옵니다.
@@ -86,6 +86,8 @@ def get_lottemall_products(url):
         # 가격 정보를 가져옵니다.
         price_tag = item.find('span', class_='strong font-17 c-black')
         price = price_tag.get_text(strip=True) if price_tag else 'N/A'
+        # 가격에서 숫자만 추출합니다.
+        price = re.sub(r'\D', '', price)
 
         # 리디렉션 URL을 가져옵니다.
         link_tag = item.find('a', class_='disblock')
@@ -130,7 +132,7 @@ def get_lottemall_products(url):
 
 # Kafka Producer 설정
 producer = KafkaProducer(
-    bootstrap_servers='a8471728fdc6349c1b1bcb62019b35ae-309616313.ap-northeast-2.elb.amazonaws.com:9094',
+    bootstrap_servers='a0084d0ff1c1c4e2fac454202f6ae5ad-1982805326.ap-northeast-2.elb.amazonaws.com:9094',
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
