@@ -15,6 +15,13 @@ def convert_time_format(time_str):
         time_str = "0" + time_str
     return time_str
 
+def convert_price_format(text):
+    # 숫자와 쉼표를 제외한 다른 문자 제거
+    numeric_string = re.sub(r'[^\d,]', '', text)
+    # 쉼표 제거
+    numeric_string = numeric_string.replace(',', '')
+    return numeric_string
+
 def get_final_redirect_url_and_images(redirect_url):
     # 요청을 보내고 페이지 내용을 가져옵니다.
     response = requests.get(redirect_url)
@@ -95,7 +102,7 @@ def get_hmall_products(url):
 
         # 가격 정보를 가져옵니다.
         price_tag = item.find('span', class_='strong font-17 c-black')
-        price = price_tag.get_text(strip=True) if price_tag else 'N/A'
+        price = convert_price_format(price_tag.get_text(strip=True)) if price_tag else 'N/A'
 
         # 리디렉션 URL을 가져옵니다.
         link_tag = item.find('a', class_='disblock')
