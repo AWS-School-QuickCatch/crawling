@@ -12,11 +12,16 @@ def convert_time_format(time_str):
         time_str = "0" + time_str
     return time_str
 
-def convert_price_format(price_str):
-    price_str = re.sub(r'[^\d]', '', price_str)
-    if price_str:
-        return int(price_str)
-    return 0
+def convert_price_format(text):
+#    price_str = re.sub(r'[^\d]', '', price_str)
+#    if price_str:
+#        return int(price_str)
+#    return 0
+    # 숫자와 쉼표를 제외한 다른 문자 제거
+    numeric_string = re.sub(r'[^\d,]', '', text)
+    # 쉼표 제거
+    numeric_string = numeric_string.replace(',', '')
+    return numeric_string
 
 def extract_entity_id(redirect_url):
     match = re.search(r'id=(\d+)', redirect_url)
@@ -138,4 +143,3 @@ for product in products:
         print(f"Failed to send message: {e}")
 
 producer.flush()
-
