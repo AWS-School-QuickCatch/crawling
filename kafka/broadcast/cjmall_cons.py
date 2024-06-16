@@ -2,6 +2,7 @@ from kafka import KafkaConsumer, KafkaProducer
 import json
 import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
+from pymongo import MongoClient
 
 # Kafka 컨슈머 설정
 consumer = KafkaConsumer(
@@ -23,8 +24,8 @@ print("Starting the Kafka consumer...")
 
 # S3 클라이언트 설정
 s3 = boto3.client('s3', region_name='ap-northeast-2',
-                  aws_access_key_id='[ACCESS]',
-                  aws_secret_access_key='[ACCESS]')
+                  aws_access_key_id='[ACCESS KEY]',
+                  aws_secret_access_key='[ACCESS KEY]')
 
 bucket_name = 'quickcatch'
 
@@ -47,6 +48,18 @@ def check_s3_file_exists(object_name, bucket=bucket_name):
         else:
             raise
 
+# MongoDB 클라이언트 설정
+mongo_client = MongoClient("mongodb://quickcatch:pass123@43.203.249.162:27017/quickcatch")
+db = mongo_client["quickcatch"]
+collection = db["broadcast"]
+
+def save_to_mongodb(data):
+    try:
+        collection.insert_one(data)
+        print(f"Data inserted into MongoDB: {data}")
+    except Exception as e:
+        print(f"Error inserting into MongoDB: {e}")
+
 for message in consumer:
     msg = message.value
     print(f"Received message: {msg}")
@@ -67,6 +80,9 @@ for message in consumer:
         # S3에 파일 업로드
         upload_to_s3(file_name, object_name)
 
+        # MongoDB에 데이터 저장
+        save_to_mongodb(msg)
+
         # sim_prod 토픽에 name과 product_id 전송
         sim_prod_message = {
             'name': msg.get('name', 'unknown_name'),
@@ -76,3 +92,4 @@ for message in consumer:
         producer.send('sim-prod', sim_prod_message)
 
 producer.flush()
+
