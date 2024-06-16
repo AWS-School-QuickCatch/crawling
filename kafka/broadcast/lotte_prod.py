@@ -4,6 +4,7 @@ import re
 import urllib
 from kafka import KafkaProducer
 import json
+import argparse
 
 def convert_time_format(time_str):
     # 공백을 제거합니다.
@@ -130,20 +131,25 @@ def get_lottemall_products(url):
 
     return products
 
+# 명령줄 인자 파싱
+parser = argparse.ArgumentParser(description='Fetch CJmall products and send to Kafka.')
+parser.add_argument('date', type=str, help='Date in the format YYYYMMDD')
+args = parser.parse_args()
+
 # Kafka Producer 설정
 producer = KafkaProducer(
     bootstrap_servers='a0084d0ff1c1c4e2fac454202f6ae5ad-1982805326.ap-northeast-2.elb.amazonaws.com:9094',
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
-# 테스트 URL
-url = 'http://www.hsmoa.com/?date=20240611&site=&cate='
+# URL에 인자값으로 받은 날짜 삽입
+url = f'http://www.hsmoa.com/?date={args.date}&site=&cate='
 products = get_lottemall_products(url)
 
 # 결과를 Kafka에 전송
 for product in products:
     print(f"Plan to Kafka: {product}")
-    future = producer.send('broadcast_lotte', product)
+    future = producer.send('broadcast', product)
 
     try:
         record_metadata = future.get(timeout=10)
